@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In & Join | EyeTic 👁️</title>
+  <meta name="description" content="Sign in or register your player profile on EyeTic to record match statistics and compete on the global eye-tracking leaderboard.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Dedicated Login Page Specific Styles */
+    .auth-page-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 38px 36px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(56, 189, 248, 0.12);
+      animation: cardAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes cardAppear {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .auth-brand-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 14px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 23, 42, 0.8) 100%);
+      border: 1px solid var(--border-active);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+
+    .auth-brand-icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--cyan-primary);
+    }
+
+    .auth-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 30%, var(--cyan-primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .auth-tabs {
+      display: flex;
+      background: rgba(15, 23, 42, 0.7);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 24px;
+    }
+
+    .auth-tab-btn {
+      flex: 1;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-radius: calc(var(--radius-md) - 4px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .auth-tab-btn.active {
+      background: var(--cyan-primary);
+      color: #040d1a;
+      box-shadow: 0 2px 10px var(--cyan-glow);
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus {
+      border-color: var(--cyan-primary);
+      box-shadow: 0 0 12px var(--cyan-glow);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .avatar-picker-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .avatar-option {
+      width: 100%;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .avatar-option:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--cyan-primary);
+      transform: scale(1.08);
+    }
+
+    .avatar-option.selected {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--cyan-primary);
+      box-shadow: 0 0 10px var(--cyan-glow);
+      transform: scale(1.1);
+    }
+
+    .auth-alert {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .auth-alert.error {
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fda4af;
+    }
+
+    .auth-alert.success {
+      background: rgba(52, 211, 153, 0.15);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+      color: #6ee7b7;
+    }
+
+    .auth-footer {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .auth-nav-link {
+      color: var(--cyan-primary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .auth-nav-link:hover {
+      text-decoration: underline;
+      color: #7dd3fc;
+    }
+
+    .demo-accounts {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-top: 8px;
+      text-align: left;
+    }
+
+    .demo-accounts-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .demo-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .demo-chip {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .demo-chip:hover {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--cyan-primary);
+      border-color: var(--cyan-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="background-grid"></div>
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <div class="auth-page-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="12" cy="12" r="1" fill="currentColor" />
+          </svg>
+        </div>
+        <h1 class="auth-title">EYETIC ARENA</h1>
+        <p class="auth-subtitle">Sign in to sync your gaze stats & climb the leaderboard</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="auth-tabs">
+        <button id="tabLogin" class="auth-tab-btn active">Log In</button>
+        <button id="tabRegister" class="auth-tab-btn">Create Account</button>
+      </div>
+
+      <!-- Notification Alert -->
+      <div id="authAlert" class="auth-alert hidden"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="auth-form" onsubmit="return false;">
+        <div class="form-group">
+          <label class="form-label" for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" class="form-input" placeholder="Enter your username" required autocomplete="username" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <button type="submit" id="submitLoginBtn" class="btn-primary" style="margin-top: 8px;">
+          <span>Sign In to Arena</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form hidden" onsubmit="return false;">
+        <div class="form-group">
+          <label class="form-label" for="regUsername">Choose Username</label>
+          <input type="text" id="regUsername" class="form-input" placeholder="Between 2-20 characters" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Password</label>
+          <input type="password" id="regPassword" class="form-input" placeholder="At least 4 characters" required autocomplete="new-password">
+        </div>
+
+        <div class="form-group">
+          <label class="avatar-picker-label">Select Avatar Icon</label>
+          <div class="avatar-grid" id="avatarPickerGrid">
+            <button type="button" class="avatar-option selected" data-avatar="👁️">👁️</button>
+            <button type="button" class="avatar-option" data-avatar="⚡">⚡</button>
+            <button type="button" class="avatar-option" data-avatar="🎯">🎯</button>
+            <button type="button" class="avatar-option" data-avatar="🤖">🤖</button>
+            <button type="button" class="avatar-option" data-avatar="🦅">🦅</button>
+            <button type="button" class="avatar-option" data-avatar="🔮">🔮</button>
+            <button type="button" class="avatar-option" data-avatar="👑">👑</button>
+            <button type="button" class="avatar-option" data-avatar="🔥">🔥</button>
+            <button type="button" class="avatar-option" data-avatar="🐉">🐉</button>
+            <button type="button" class="avatar-option" data-avatar="🌟">🌟</button>
+            <button type="button" class="avatar-option" data-avatar="💎">💎</button>
+            <button type="button" class="avatar-option" data-avatar="🚀">🚀</button>
+          </div>
+        </div>
+
+        <button type="submit" id="submitRegBtn" class="btn-primary" style="margin-top: 8px;">
+          <span>Create Account & Play</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </form>
+
+
+      <!-- Footer Navigation Links -->
+      <div class="auth-footer">
+        <a href="/" class="auth-nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Return to Game (Play as Guest)</span>
+        </a>
+
+        <a href="/leaderboard" class="auth-nav-link" style="color: var(--gold-primary);">
+          <span>🏆 View Leaderboard Standings</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const authAlert = document.getElementById('authAlert');
+    let selectedAvatar = '👁️';
+
+    function showAlert(msg, isError = true) {
+      authAlert.textContent = msg;
+      authAlert.className = `auth-alert ${isError ? 'error' : 'success'}`;
+      authAlert.classList.remove('hidden');
+    }
+
+    function hideAlert() {
+      authAlert.classList.add('hidden');
+    }
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabRegister.classList.remove('active');
+      loginForm.classList.remove('hidden');
+      registerForm.classList.add('hidden');
+      hideAlert();
+    });
+
+    tabRegister.addEventListener('click', () => {
+      tabRegister.classList.add('active');
+      tabLogin.classList.remove('active');
+      registerForm.classList.remove('hidden');
+      loginForm.classList.add('hidden');
+      hideAlert();
+    });
+
+    // Avatar selector
+    document.querySelectorAll('.avatar-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedAvatar = btn.dataset.avatar;
+      });
+    });
+
+    // Handle Login Submit
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value;
+      if (!u || !p) return;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showAlert(`Welcome back, ${data.user.username}! Redirecting to game...`, false);
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 600);
+        } else {
+          showAlert(data.error || 'Login failed. Please check credentials.');
+        }
+      } catch (err) {
+        showAlert('Network error communicating with server.');
+      }
+    });
+
+    // Handle Register Submit
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+      const u = document.getElementById('regUsername').value.trim();
+      const p = document.getElementById('regPassword').value;
+      if (!u || !p) return;
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p, avatar: selectedAvatar })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showAlert(`Account created successfully! Welcome to EyeTic, ${data.user.username}! Redirecting...`, false);
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 800);
+        } else {
+          showAlert(data.error || 'Registration failed.');
+        }
+      } catch (err) {
+        showAlert('Network error communicating with server.');
+      }
+    });
+  </script>
+</body>
+</html>
