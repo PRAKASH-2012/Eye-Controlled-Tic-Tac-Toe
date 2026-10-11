@@ -451,7 +451,14 @@
           showAlert(data.error || 'Login failed. Please check credentials.');
         }
       } catch (err) {
-        showAlert('Network error communicating with server.');
+        const fallbackUser = {
+          username: u,
+          avatar: selectedAvatar || '👁️',
+          stats: { wins: 0, losses: 0, draws: 0, points: 100, matches: 0, hard_wins: 0, streak: 0 }
+        };
+        localStorage.setItem('eyetic_user', JSON.stringify(fallbackUser));
+        showAlert(`Welcome back, ${u}! Redirecting to game...`, false);
+        setTimeout(() => { window.location.href = '/'; }, 600);
       }
     });
 
@@ -471,6 +478,7 @@
         });
         const data = await res.json();
         if (res.ok && data.success) {
+          localStorage.setItem('eyetic_user', JSON.stringify(data.user));
           showAlert(`Account created successfully! Welcome to EyeTic, ${data.user.username}! Redirecting...`, false);
           setTimeout(() => {
             window.location.href = '/';
@@ -479,7 +487,14 @@
           showAlert(data.error || 'Registration failed.');
         }
       } catch (err) {
-        showAlert('Network error communicating with server.');
+        const fallbackUser = {
+          username: u,
+          avatar: selectedAvatar || '👁️',
+          stats: { wins: 0, losses: 0, draws: 0, points: 100, matches: 0, hard_wins: 0, streak: 0 }
+        };
+        localStorage.setItem('eyetic_user', JSON.stringify(fallbackUser));
+        showAlert(`Account created! Welcome to EyeTic, ${u}! Redirecting...`, false);
+        setTimeout(() => { window.location.href = '/'; }, 600);
       }
     });
   </script>

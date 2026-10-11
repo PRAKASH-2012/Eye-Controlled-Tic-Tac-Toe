@@ -1,5 +1,6 @@
 # EyeTic 👁️ | Eye-Controlled Tic-Tac-Toe
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://eye-controlled-tic-tac-toe.vercel.app)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green.svg)](https://opencv.org/)
@@ -8,6 +9,8 @@
 [![Pygame](https://img.shields.io/badge/Pygame-Gaming%20Engine-red.svg)](https://www.pygame.org/)
 
 An accessible, hands-free **Eye-Controlled Tic-Tac-Toe** game powered by real-time computer vision (OpenCV & MediaPipe Face Mesh). Play completely hands-free using your gaze, or explore the full-featured cyber-themed Web App and native Desktop Pygame game!
+
+👉 **Play Live Demo:** [https://eye-controlled-tic-tac-toe.vercel.app](https://eye-controlled-tic-tac-toe.vercel.app)
 
 ---
 

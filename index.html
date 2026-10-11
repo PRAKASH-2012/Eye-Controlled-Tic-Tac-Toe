@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EyeTic 👁️ | Eye-Controlled Tic-Tac-Toe</title>
+  <meta name="description" content="Play Tic-Tac-Toe using real-time webcam eye and gaze tracking powered by OpenCV and MediaPipe.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="background-grid"></div>
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <!-- Notification Toast for Leaderboard Points -->
+  <div id="pointsToast" class="points-toast hidden">
+    <div class="toast-icon">🏆</div>
+    <div class="toast-content">
+      <div id="toastTitle" class="toast-title">+25 PTS EARNED!</div>
+      <div id="toastSubtitle" class="toast-sub">Match added to Leaderboard</div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+            <circle cx="12" cy="12" r="1" fill="currentColor" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>EYETIC</h1>
+          <span class="badge-vision">EYE CONTROLLED</span>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div id="cameraStatusPill" class="status-pill status-connecting">
+          <span class="status-dot"></span>
+          <span id="cameraStatusText">INITIALIZING TRACKER</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Leaderboard Action Button -->
+        <button id="leaderboardBtn" class="btn-secondary btn-nav-gold" title="Global Rankings" aria-label="Leaderboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+            <path d="M4 22h16"></path>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+          </svg>
+          <span>Leaderboard</span>
+        </button>
+
+        <!-- User Profile / Auth Button -->
+        <button id="userProfileBtn" class="btn-secondary btn-user-pill" title="Player Profile / Login" aria-label="User Account">
+          <span id="userAvatarIcon" class="user-avatar-icon">👤</span>
+          <span id="userPillText">Sign In</span>
+          <span id="userPointsBadge" class="user-points-badge hidden">0 PTS</span>
+        </button>
+
+        <!-- Camera Access Perm Button -->
+        <button id="camPermBtn" class="btn-secondary" title="Camera Access & Permissions" aria-label="Camera Access">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span>Camera</span>
+        </button>
+
+        <!-- Sound Toggle Button -->
+        <button id="soundToggleBtn" class="btn-icon" title="Toggle Sound FX" aria-label="Toggle Sound">
+          <svg id="soundOnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="soundOffIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hidden">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+
+        <!-- Guide Button -->
+        <button id="howBtn" class="btn-secondary" aria-label="How to play">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Guide</span>
+        </button>
+
+        <!-- Settings Button -->
+        <button id="settingsBtn" class="btn-secondary" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span>Settings</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="main-layout">
+      <!-- Left: Game Arena -->
+      <section class="game-section">
+        <!-- Turn / Result Banner -->
+        <div id="turnBanner" class="turn-banner turn-player">
+          <div class="turn-indicator">
+            <span class="turn-dot"></span>
+            <span id="turnText" class="turn-title">YOUR TURN</span>
+          </div>
+          <span id="turnSubtitle" class="turn-subtitle">Look directly at an open cell to dwell-select</span>
+        </div>
+
+        <!-- 3x3 Board Arena -->
+        <div class="board-wrapper">
+          <div id="board" class="board-grid">
+            <div class="cell" data-idx="0" id="cell-0">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">1</span>
+            </div>
+            <div class="cell" data-idx="1" id="cell-1">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">2</span>
+            </div>
+            <div class="cell" data-idx="2" id="cell-2">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">3</span>
+            </div>
+            <div class="cell" data-idx="3" id="cell-3">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">4</span>
+            </div>
+            <div class="cell" data-idx="4" id="cell-4">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">5</span>
+            </div>
+            <div class="cell" data-idx="5" id="cell-5">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">6</span>
+            </div>
+            <div class="cell" data-idx="6" id="cell-6">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">7</span>
+            </div>
+            <div class="cell" data-idx="7" id="cell-7">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">8</span>
+            </div>
+            <div class="cell" data-idx="8" id="cell-8">
+              <svg class="dwell-svg" viewBox="0 0 120 120">
+                <circle class="dwell-bg" cx="60" cy="60" r="54"></circle>
+                <circle class="dwell-bar" cx="60" cy="60" r="54"></circle>
+              </svg>
+              <div class="mark-slot"></div>
+              <span class="cell-num">9</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Bar under Board -->
+        <div class="board-actions">
+          <button id="newRoundBtn" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+            </svg>
+            <span>New Game</span>
+            <span class="kbd-hint">Space / Enter</span>
+          </button>
+
+          <div class="helper-text">
+            <span>🖱️ Click cell or ⌨️ Arrow keys + Enter also work anytime</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Vision & Stats Control Center -->
+      <aside class="sidebar-section">
+        <!-- Live Camera Vision Feed -->
+        <div class="card vision-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span>Live Eye Tracking</span>
+            </div>
+            <span id="trackerBadge" class="card-badge badge-active">Active</span>
+          </div>
+
+          <div class="video-container">
+            <video id="webcamVideo" playsinline autoplay muted style="display:none;"></video>
+            <canvas id="webcamCanvas" width="320" height="240"></canvas>
+            <img id="videoFeed" src="/video_feed" alt="Webcam Gaze Feed" crossorigin="anonymous" style="display:none;" />
+            <div id="videoFallback" class="video-fallback hidden">
+              <div class="fallback-spinner"></div>
+              <p>Camera connecting or preview disabled</p>
+            </div>
+            <!-- Calibrated Gaze Position Overlay -->
+            <div id="gazeOverlayDot" class="gaze-overlay-dot"></div>
+          </div>
+
+          <div class="vision-telemetry">
+            <div class="telemetry-item">
+              <span class="telemetry-label">Gaze Position</span>
+              <span id="telemetryCoords" class="telemetry-val">0.50, 0.50</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="telemetry-label">Target Cell</span>
+              <span id="telemetryTarget" class="telemetry-val">Center (5)</span>
+            </div>
+          </div>
+
+          <div class="camera-actions-row">
+            <button id="requestBrowserCamBtn" class="btn-cam-action" title="Trigger browser camera authorization prompt">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+              <span>Authorize Camera In Browser</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Match Scoreboard -->
+        <div class="card stats-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                <path d="M4 22h16"></path>
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+              </svg>
+              <span>Scoreboard</span>
+            </div>
+            <button id="resetStatsBtn" class="btn-text-subtle" title="Reset all match statistics">Reset</button>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-box stat-win">
+              <span class="stat-number" id="statWins">0</span>
+              <span class="stat-label">Wins (You)</span>
+            </div>
+            <div class="stat-box stat-draw">
+              <span class="stat-number" id="statDraws">0</span>
+              <span class="stat-label">Draws</span>
+            </div>
+            <div class="stat-box stat-loss">
+              <span class="stat-number" id="statLosses">0</span>
+              <span class="stat-label">Losses (AI)</span>
+            </div>
+          </div>
+
+          <!-- User Stats Quick Preview if Logged In -->
+          <div id="userQuickStats" class="user-quick-stats hidden">
+            <div class="user-qs-row">
+              <span class="user-qs-label">Player Elo Points:</span>
+              <span id="userQsPoints" class="user-qs-val">0 PTS</span>
+            </div>
+            <div class="user-qs-row">
+              <span class="user-qs-label">Win Rate:</span>
+              <span id="userQsWinRate" class="user-qs-val">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Game Configuration -->
+        <div class="card config-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>Difficulty</span>
+            </div>
+          </div>
+
+          <div class="difficulty-toggle">
+            <button class="diff-btn" data-diff="Easy">Easy</button>
+            <button class="diff-btn active" data-diff="Medium">Medium</button>
+            <button class="diff-btn" data-diff="Hard">Hard (Minimax)</button>
+          </div>
+
+          <div class="dwell-slider-group">
+            <div class="dwell-label-row">
+              <label for="dwellSlider">Dwell Duration</label>
+              <span id="dwellValDisplay" class="dwell-val">1.2s</span>
+            </div>
+            <input type="range" id="dwellSlider" min="0.6" max="2.5" step="0.1" value="1.2">
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- LEADERBOARD MODAL -->
+  <div id="leaderboardModal" class="modal-overlay hidden">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">🏆</span>
+          <div>
+            <h2 style="margin: 0; font-size: 22px;">Global Leaderboard</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 2px 0 0;">Gaze Pilots Ranked Worldwide</p>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <a href="/leaderboard" target="_blank" class="btn-secondary" style="font-size: 12px; padding: 6px 12px; text-decoration: none;">
+            <span>Open Full Page ↗</span>
+          </a>
+          <button id="closeLeaderboardBtn" class="btn-close" aria-label="Close leaderboard">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <!-- Filter Tabs in Modal -->
+        <div class="modal-filter-tabs">
+          <button class="modal-filter-btn active" data-filter="all">🏆 Overall Points</button>
+          <button class="modal-filter-btn" data-filter="hard">💀 Hard AI</button>
+          <button class="modal-filter-btn" data-filter="wins">🎯 Most Wins</button>
+          <button class="modal-filter-btn" data-filter="win_rate">⚡ Win Rate</button>
+        </div>
+
+        <!-- Mini Podium in Modal -->
+        <div class="mini-podium" id="modalPodium">
+          <div class="mini-podium-card rank-2" id="mPodium2">
+            <div class="mp-avatar" id="mp2Avatar">⚡</div>
+            <div class="mp-name" id="mp2Name">---</div>
+            <div class="mp-pts" id="mp2Pts">0 PTS</div>
+            <div class="mp-badge">#2</div>
+          </div>
+          <div class="mini-podium-card rank-1" id="mPodium1">
+            <span class="mp-crown">👑</span>
+            <div class="mp-avatar" id="mp1Avatar">👁️</div>
+            <div class="mp-name" id="mp1Name">---</div>
+            <div class="mp-pts" id="mp1Pts">0 PTS</div>
+            <div class="mp-badge">#1</div>
+          </div>
+          <div class="mini-podium-card rank-3" id="mPodium3">
+            <div class="mp-avatar" id="mp3Avatar">🦅</div>
+            <div class="mp-name" id="mp3Name">---</div>
+            <div class="mp-pts" id="mp3Pts">0 PTS</div>
+            <div class="mp-badge">#3</div>
+          </div>
+        </div>
+
+        <!-- Rankings Table -->
+        <div class="modal-table-scroll">
+          <table class="modal-lb-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Pilot</th>
+                <th>Points</th>
+                <th>Win Rate</th>
+                <th>Record (W-L-D)</th>
+              </tr>
+            </thead>
+            <tbody id="modalLbTbody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading champions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="closeLeaderboardFooterBtn" class="btn-primary">Back to Match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH / LOGIN MODAL -->
+  <div id="authModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 22px;">👁️</span>
+          <h2>Player Authentication</h2>
+        </div>
+        <button id="closeAuthBtn" class="btn-close" aria-label="Close auth">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-tabs" style="margin-bottom: 16px;">
+          <button id="modalTabLogin" class="auth-tab-btn active">Sign In</button>
+          <button id="modalTabRegister" class="auth-tab-btn">Register</button>
+        </div>
+
+        <div id="modalAuthAlert" class="auth-alert hidden"></div>
+
+        <!-- In-Modal Login Form -->
+        <form id="modalLoginForm" class="auth-form" onsubmit="return false;">
+          <div class="form-group">
+            <label class="form-label" for="mUsername">Username</label>
+            <input type="text" id="mUsername" class="form-input" placeholder="Enter username" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mPassword">Password</label>
+            <input type="password" id="mPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" id="modalSubmitLogin" class="btn-primary" style="margin-top: 6px;">Sign In</button>
+        </form>
+
+        <!-- In-Modal Register Form -->
+        <form id="modalRegForm" class="auth-form hidden" onsubmit="return false;">
+          <div class="form-group">
+            <label class="form-label" for="mRegUsername">Username</label>
+            <input type="text" id="mRegUsername" class="form-input" placeholder="2-20 characters" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="mRegPassword">Password</label>
+            <input type="password" id="mRegPassword" class="form-input" placeholder="At least 4 characters" required autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label class="avatar-picker-label">Choose Avatar</label>
+            <div class="avatar-grid" id="mAvatarGrid">
+              <button type="button" class="avatar-option selected" data-avatar="👁️">👁️</button>
+              <button type="button" class="avatar-option" data-avatar="⚡">⚡</button>
+              <button type="button" class="avatar-option" data-avatar="🎯">🎯</button>
+              <button type="button" class="avatar-option" data-avatar="🤖">🤖</button>
+              <button type="button" class="avatar-option" data-avatar="🦅">🦅</button>
+              <button type="button" class="avatar-option" data-avatar="🔮">🔮</button>
+            </div>
+          </div>
+          <button type="submit" id="modalSubmitReg" class="btn-primary" style="margin-top: 6px;">Create Account</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 16px;">
+          <a href="/login" style="font-size: 13px; color: var(--cyan-primary); text-decoration: none;">Open Dedicated Login Page ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USER PROFILE MODAL -->
+  <div id="profileModal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 22px;">👤</span>
+          <h2>Player Profile</h2>
+        </div>
+        <button id="closeProfileBtn" class="btn-close" aria-label="Close profile">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-hero">
+          <div id="profAvatar" class="profile-avatar-large">👁️</div>
+          <div id="profUsername" class="profile-username">Player</div>
+          <div id="profRankBadge" class="profile-rank-badge">RANK #1 • ELITE</div>
+        </div>
+
+        <div class="profile-stats-grid">
+          <div class="prof-stat-box">
+            <span class="prof-stat-val" id="profPoints">0</span>
+            <span class="prof-stat-lbl">Leaderboard Points</span>
+          </div>
+          <div class="prof-stat-box">
+            <span class="prof-stat-val" id="profWinRate">0%</span>
+            <span class="prof-stat-lbl">Win Rate</span>
+          </div>
+          <div class="prof-stat-box">
+            <span class="prof-stat-val" id="profMatches">0</span>
+            <span class="prof-stat-lbl">Matches Played</span>
+          </div>
+          <div class="prof-stat-box">
+            <span class="prof-stat-val" id="profHardWins">0</span>
+            <span class="prof-stat-lbl">Hard AI Victories</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button id="logoutBtn" class="btn-secondary" style="color: var(--crimson-primary); border-color: rgba(244, 63, 94, 0.4);">
+          Sign Out
+        </button>
+        <button id="closeProfileFooterBtn" class="btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guide / How to play Modal -->
+  <div id="guideModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>How to Play EyeTic 👁️</h2>
+        <button id="closeGuideBtn" class="btn-close" aria-label="Close guide">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h3>Position Yourself</h3>
+            <p>Sit approximately <strong>40 – 70 cm</strong> directly facing your webcam in comfortable lighting.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h3>Look to Target</h3>
+            <p>Shift your gaze toward any of the 9 cells on the board. The system detects your pupil landmarks in real-time.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h3>Hold to Select (Dwell)</h3>
+            <p>Hold your gaze steady on the cell. The <strong>circular green progress ring</strong> will fill up. Once full, your mark (X) is placed!</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <h3>Accessibility & Fallback Controls</h3>
+            <p>You can also use <strong>Mouse clicks</strong> or keyboard <strong>Arrow keys + Enter / Space</strong> to play at any time.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="gotItBtn" class="btn-primary">Got it, Let's Play!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Settings ⚙️</h2>
+        <button id="closeSettingsBtn" class="btn-close" aria-label="Close settings">&times;</button>
+      </div>
+      <div class="modal-body settings-options">
+        <div class="setting-row">
+          <div>
+            <h4>Camera Preview</h4>
+            <p>Display live video with detected iris indicators</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="previewToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <h4>Sound Effects</h4>
+            <p>Play audio feedback on dwell, cell selection, and victory</p>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="soundToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveSettingsBtn" class="btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Camera Permission & Troubleshooting Modal -->
+  <div id="camPermModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Camera Access & Permissions 📷</h2>
+        <button id="closeCamPermBtn" class="btn-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h3>Allow In Browser (Chrome / Edge / Firefox)</h3>
+            <p>Click the <strong>Authorize Camera In Browser</strong> button, or click the <strong>🔒 Padlock / Camera icon</strong> on the left side of your browser URL bar (next to <code>localhost:5000</code>) and set <strong>Camera: Allow</strong>.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h3>Windows Camera Privacy Setting</h3>
+            <p>If your camera still doesn't turn on, open Windows <strong>Settings &gt; Privacy &amp; security &gt; Camera</strong>:</p>
+            <ul style="margin: 8px 0 0 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+              <li>Ensure <strong>Camera access</strong> is toggled <strong>ON</strong></li>
+              <li>Ensure <strong>Let apps access your camera</strong> is toggled <strong>ON</strong></li>
+              <li>Ensure <strong>Let desktop apps access your camera</strong> is toggled <strong>ON</strong> (for Python)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h3>Close Other Apps Using the Camera</h3>
+            <p>On Windows, only one application can access the webcam at a time. Close Zoom, Microsoft Teams, Discord, or any other camera app.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="gap: 12px;">
+        <button id="testCamModalBtn" class="btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span>Grant / Test Camera Now</span>
+        </button>
+        <button id="dismissCamPermBtn" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
