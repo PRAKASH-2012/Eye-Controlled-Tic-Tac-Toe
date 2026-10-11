@@ -35,6 +35,12 @@
   const webcamVideo = document.getElementById('webcamVideo');
   const webcamCanvas = document.getElementById('webcamCanvas');
   const videoFallback = document.getElementById('videoFallback');
+  const fallbackSpinner = document.getElementById('fallbackSpinner');
+  const fallbackIcon = document.getElementById('fallbackIcon');
+  const fallbackMsg = document.getElementById('fallbackMsg');
+  const fallbackSub = document.getElementById('fallbackSub');
+  const startCamBtn = document.getElementById('startCamBtn');
+
   const gazeOverlayDot = document.getElementById('gazeOverlayDot');
   const telemetryCoords = document.getElementById('telemetryCoords');
   const telemetryTarget = document.getElementById('telemetryTarget');
@@ -132,7 +138,6 @@
   let selectedModalAvatar = '👁️';
   let toastTimer = null;
 
-  // Local storage helpers
   function getStorage(key, fallback) {
     try {
       const v = localStorage.getItem(key);
@@ -425,7 +430,6 @@
     }
     render(gameState);
 
-    // Notify backend if connected
     fetch('/api/move', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -507,19 +511,16 @@
       cameraStatusText.textContent = 'EYE TRACKING LOCKED';
       trackerBadge.textContent = 'Tracking Pupils';
       trackerBadge.className = 'card-badge badge-active';
-      videoFallback.classList.add('hidden');
     } else if (status === 'camera_on') {
       cameraStatusPill.classList.add('status-connecting');
       cameraStatusText.textContent = 'CAMERA ON — POSITION FACE';
       trackerBadge.textContent = 'Searching Face';
       trackerBadge.className = 'card-badge';
-      videoFallback.classList.add('hidden');
     } else {
       cameraStatusPill.classList.add('status-inactive');
-      cameraStatusText.textContent = 'CAMERA NOT CONNECTED';
+      cameraStatusText.textContent = 'CAMERA DISCONNECTED';
       trackerBadge.textContent = 'Offline';
       trackerBadge.className = 'card-badge';
-      videoFallback.classList.remove('hidden');
     }
   }
 
@@ -631,24 +632,56 @@
     });
   }
 
-  // In-Browser MediaPipe Face Mesh & Eye Tracking
-  let faceMeshInstance = null;
+  // Camera Management & Frame Loop
   let browserCameraStream = null;
+  let isCameraActive = false;
+  let faceMeshInstance = null;
+  let isProcessingFrame = false;
+  let cameraAnimId = null;
+
   let smoothX = 0.5;
   let smoothY = 0.5;
   let dwellStartTime = null;
   let selectedGazeCell = null;
 
+  function showCameraError(msg) {
+    if (fallbackSpinner) fallbackSpinner.style.display = 'none';
+    if (fallbackIcon) {
+      fallbackIcon.style.display = 'block';
+      fallbackIcon.textContent = '⚠️';
+    }
+    if (fallbackMsg) fallbackMsg.textContent = msg;
+    if (fallbackSub) fallbackSub.textContent = 'Ensure webcam permission is allowed in your browser URL bar, or click to retry:';
+    if (startCamBtn) {
+      startCamBtn.style.display = 'inline-flex';
+      startCamBtn.textContent = '🔄 Try Camera Again';
+    }
+    videoFallback.classList.remove('hidden');
+    setCameraStatus('offline');
+  }
+
   async function startBrowserCameraTracking() {
     initAudio();
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Your browser does not support webcam media access. You can still play with mouse or keyboard!');
+      showCameraError('Your browser does not support webcam media access. Mouse clicks and arrow keys fallback are enabled!');
       return;
     }
 
+    // UI Connecting State
+    if (fallbackSpinner) fallbackSpinner.style.display = 'block';
+    if (fallbackIcon) fallbackIcon.style.display = 'none';
+    if (fallbackMsg) fallbackMsg.textContent = 'Connecting to webcam...';
+    if (fallbackSub) fallbackSub.textContent = 'Please click "Allow" when your browser asks for camera permission.';
+    if (startCamBtn) startCamBtn.style.display = 'none';
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: 'user'
+        },
         audio: false
       });
 
@@ -656,84 +689,106 @@
       webcamVideo.srcObject = stream;
       await webcamVideo.play();
 
+      isCameraActive = true;
       gameState.camera_ok = true;
+
+      // Hide fallback modal and show live canvas
       videoFallback.classList.add('hidden');
       webcamCanvas.style.display = 'block';
       if (videoFeed) videoFeed.style.display = 'none';
 
+      // Start continuous video drawing immediately!
+      if (cameraAnimId) cancelAnimationFrame(cameraAnimId);
+      cameraFrameLoop();
+
+      // Initialize MediaPipe FaceMesh
       initMediaPipe();
+
       playTone(750, 0.15, 'sine', 0.2);
       camPermModal.classList.add('hidden');
+      setCameraStatus('camera_on');
     } catch (err) {
-      console.warn('Webcam access was not granted:', err);
-      camPermModal.classList.remove('hidden');
+      console.warn('Webcam access error:', err);
+      isCameraActive = false;
+      gameState.camera_ok = false;
+
+      let msg = 'Camera access was not granted.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        msg = 'Camera permission blocked. Click the 🔒 Lock icon in your browser URL bar and set Camera to "Allow".';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        msg = 'Camera is currently in use by another app. Please close other camera apps and click Try Again.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        msg = 'No webcam found on your device. Connect a camera or use mouse / keyboard fallback.';
+      }
+      showCameraError(msg);
       playTone(280, 0.2, 'sawtooth', 0.2);
+    }
+  }
+
+  // Live Canvas Rendering & FaceMesh Processing Loop
+  async function cameraFrameLoop() {
+    if (isCameraActive && webcamVideo.readyState >= 2 && webcamCanvas) {
+      const ctx = webcamCanvas.getContext('2d');
+      const w = webcamCanvas.width;
+      const h = webcamCanvas.height;
+
+      // 1. Draw live mirrored video frame
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(webcamVideo, -w, 0, w, h);
+      ctx.restore();
+
+      // 2. Process with FaceMesh if available
+      if (faceMeshInstance && !isProcessingFrame) {
+        isProcessingFrame = true;
+        try {
+          await faceMeshInstance.send({ image: webcamVideo });
+        } catch (e) {
+          console.warn('MediaPipe send frame error:', e);
+        } finally {
+          isProcessingFrame = false;
+        }
+      }
+    }
+
+    if (isCameraActive) {
+      cameraAnimId = requestAnimationFrame(cameraFrameLoop);
     }
   }
 
   function initMediaPipe() {
     if (!window.FaceMesh) {
-      console.log('MediaPipe FaceMesh script loading or unavailable, running manual video loop');
-      requestAnimationFrame(renderVideoFrameLoop);
+      console.log('MediaPipe FaceMesh script loading or unavailable, video frame loop running');
       return;
     }
 
     if (faceMeshInstance) return;
 
-    faceMeshInstance = new window.FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-
-    faceMeshInstance.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    faceMeshInstance.onResults(onFaceMeshResults);
-
-    if (window.Camera) {
-      const cam = new window.Camera(webcamVideo, {
-        onFrame: async () => {
-          if (webcamVideo.readyState >= 2) {
-            await faceMeshInstance.send({ image: webcamVideo });
-          }
-        },
-        width: 640,
-        height: 480
+    try {
+      faceMeshInstance = new window.FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
       });
-      cam.start();
-    } else {
-      requestAnimationFrame(processVideoFrame);
-    }
-  }
 
-  async function processVideoFrame() {
-    if (faceMeshInstance && webcamVideo.readyState >= 2) {
-      await faceMeshInstance.send({ image: webcamVideo });
-    }
-    requestAnimationFrame(processVideoFrame);
-  }
+      faceMeshInstance.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
 
-  function renderVideoFrameLoop() {
-    if (webcamVideo.readyState >= 2 && webcamCanvas) {
-      const ctx = webcamCanvas.getContext('2d');
-      ctx.save();
-      ctx.scale(-1, 1);
-      ctx.drawImage(webcamVideo, -webcamCanvas.width, 0, webcamCanvas.width, webcamCanvas.height);
-      ctx.restore();
+      faceMeshInstance.onResults(onFaceMeshResults);
+    } catch (e) {
+      console.warn('Error creating FaceMesh instance:', e);
     }
-    requestAnimationFrame(renderVideoFrameLoop);
   }
 
   function onFaceMeshResults(results) {
-    if (!webcamCanvas) return;
+    if (!isCameraActive || !webcamCanvas) return;
     const ctx = webcamCanvas.getContext('2d');
     const w = webcamCanvas.width;
     const h = webcamCanvas.height;
 
-    // Draw mirrored video frame
+    // Draw video frame mirrored
     ctx.save();
     ctx.scale(-1, 1);
     ctx.drawImage(results.image, -w, 0, w, h);
@@ -752,7 +807,7 @@
       // Draw glowing emerald circles on pupils
       ctx.fillStyle = '#10b981';
       ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       ctx.beginPath();
       ctx.arc(leftPupilX, leftPupilY, 4, 0, 2 * Math.PI);
       ctx.arc(rightPupilX, rightPupilY, 4, 0, 2 * Math.PI);
@@ -769,7 +824,7 @@
       const eyeAvgX = 1.0 - (lx + rx) / 2;
       const eyeAvgY = (ly + ry) / 2;
 
-      // Sensitivity curve identical to Python GazeTracker
+      // Sensitivity curve
       const targetX = Math.min(1, Math.max(0, 0.5 + (eyeAvgX - 0.5) * 2.4));
       const targetY = Math.min(1, Math.max(0, 0.5 + (eyeAvgY - 0.5) * 2.4));
 
@@ -934,6 +989,13 @@
 
   // Setup Event Handlers
   function setupEvents() {
+    // Enable Camera Button in video fallback box
+    if (startCamBtn) {
+      startCamBtn.addEventListener('click', () => {
+        startBrowserCameraTracking();
+      });
+    }
+
     // Cell Click
     cells.forEach(cell => {
       const idx = parseInt(cell.dataset.idx, 10);
@@ -1110,7 +1172,6 @@
         }
       } catch (err) {}
 
-      // Local fallback login
       const localUser = {
         username: u,
         avatar: selectedModalAvatar || '👁️',
@@ -1145,7 +1206,6 @@
         }
       } catch (err) {}
 
-      // Local fallback register
       const localUser = {
         username: u,
         avatar: selectedModalAvatar || '👁️',
@@ -1240,35 +1300,19 @@
     });
   }
 
-  // Periodic Server Poll (if running alongside local Flask backend)
-  async function pollServer() {
-    try {
-      const res = await fetch('/api/state');
-      if (res.ok) {
-        const data = await res.json();
-        // If server webcam is active, sync server state
-        if (data.camera_ok && !browserCameraStream) {
-          gameState = { ...gameState, ...data };
-          if (videoFeed) {
-            videoFeed.style.display = 'block';
-            webcamCanvas.style.display = 'none';
-          }
-          render(gameState);
-        }
-      }
-    } catch (e) {}
-  }
-
   // Init
   document.addEventListener('DOMContentLoaded', () => {
     setupEvents();
     if (currentUser) updateUserUI(currentUser);
     render(gameState);
 
-    // Prompt browser camera on start for live eye-tracking
-    startBrowserCameraTracking();
-
-    // Background poll for server sync if available
-    setInterval(pollServer, 1000);
+    // If permission was already granted in browser, start camera smoothly
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'camera' }).then((res) => {
+        if (res.state === 'granted') {
+          startBrowserCameraTracking();
+        }
+      }).catch(() => {});
+    }
   });
 })();

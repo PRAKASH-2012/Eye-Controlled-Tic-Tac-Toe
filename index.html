@@ -237,13 +237,18 @@
             <span id="trackerBadge" class="card-badge badge-active">Active</span>
           </div>
 
-          <div class="video-container">
-            <video id="webcamVideo" playsinline autoplay muted style="display:none;"></video>
+          <div class="video-container" id="videoContainer">
+            <video id="webcamVideo" playsinline autoplay muted></video>
             <canvas id="webcamCanvas" width="320" height="240"></canvas>
             <img id="videoFeed" src="/video_feed" alt="Webcam Gaze Feed" crossorigin="anonymous" style="display:none;" />
-            <div id="videoFallback" class="video-fallback hidden">
-              <div class="fallback-spinner"></div>
-              <p>Camera connecting or preview disabled</p>
+            <div id="videoFallback" class="video-fallback">
+              <div class="fallback-spinner" id="fallbackSpinner" style="display:none;"></div>
+              <div id="fallbackIcon" style="font-size: 32px; margin-bottom: 4px;">👁️</div>
+              <p id="fallbackMsg" style="font-weight: 700; color: var(--text-primary); margin: 0;">Webcam Access Required</p>
+              <span id="fallbackSub" style="font-size: 12px; color: var(--text-muted); max-width: 240px; text-align: center; line-height: 1.4;">Click below to enable webcam for hands-free eye control:</span>
+              <button id="startCamBtn" class="btn-primary" style="margin-top: 8px; font-size: 13px; padding: 9px 18px; box-shadow: 0 0 16px var(--cyan-glow); cursor: pointer;">
+                📹 Enable Webcam
+              </button>
             </div>
             <!-- Calibrated Gaze Position Overlay -->
             <div id="gazeOverlayDot" class="gaze-overlay-dot"></div>
